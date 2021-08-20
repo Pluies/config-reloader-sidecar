@@ -45,7 +45,36 @@ In addition, you'll need to set [`shareProcessNamespace: true` on your Pod](http
 ## Example Pod configuration
 
 ```yaml
-TODO
+apiVersion: v1
+kind: Pod
+metadata:
+  name: auto-reloading-pgbouncer
+spec:
+  shareProcessNamespace: true
+  containers:
+  - name: pgbouncer
+    image: bitnami/pgbouncer:latest
+    command:
+    - pgbouncer
+    args:
+    - /etc/pgbouncer/pgbouncer.ini
+    volumeMounts:
+    - mountPath: /etc/pgbouncer/
+      name: secret-volume
+  - name: config-reloader-sidecar
+    image: some-private-repo.example.com/config-reloader-sidecar # Note: this isn't yet available on the Docker hub!
+    env:
+    - name: CONFIG_DIR
+      value: /etc/pgbouncer/
+    - name: PROCESS_NAME
+      value: pgbouncer
+    volumeMounts:
+    - mountPath: /etc/pgbouncer/
+      name: secret-volume
+  volumes:
+  - name: secret-volume
+    secret:
+      secretName: pgbouncer-secret
 ```
 
 ## Gotchas
