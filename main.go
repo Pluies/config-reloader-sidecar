@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
@@ -66,9 +67,12 @@ func main() {
 		}
 	}()
 
-	err = watcher.Add(configDir)
-	if err != nil {
-		log.Fatal(err)
+	configDirs := strings.Split(configDir, ",")
+	for _, dir := range configDirs {
+		err = watcher.Add(dir)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	<-done

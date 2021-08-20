@@ -1,6 +1,6 @@
 # config-reloader-sidecar
 
-Watch a config folder for changes, and send a signal to a process when changes happen.
+A small (3MB uncompressed docker image), efficient (via inotify) sidecar to trigger application reloads when configuration changes.
 
 ## Rationale
 
@@ -31,12 +31,14 @@ The `config-reloader-sidecar` exists specifically for that use case!
 
 ## How it works
 
-`config-reloader-sidecar` needs to run, as the name implies, as a separate container in the same Pod as the application you want to reload (a [sidecar](https://kubernetes.io/docs/concepts/workloads/pods/#using-pods)).
+`config-reloader-sidecar` uses Go's [fsnotify](https://pkg.go.dev/gopkg.in/fsnotify.v1) package to watch one (or more) configuration folders, and send a signal to a process when any change is detected within that folder. This includes file created, file updated, file renamed & file deleted, but excludes file permissions changes.
+
+`config-reloader-sidecar` needs to run, as the name implies, as a separate container in the same Pod as the application you want to reload, i.e. a [sidecar](https://kubernetes.io/docs/concepts/workloads/pods/#using-pods).
 
 In addition, you'll need to set [`shareProcessNamespace: true` on your Pod](https://kubernetes.io/docs/tasks/configure-pod-container/share-process-namespace/) to send signals across containers.
 
 `config-reloader-sidecar` is then configured through the following env vars:
-- `CONFIG_DIR`: configuration folder to watch (mandatory)
+- `CONFIG_DIR`: comma-separated list of configuration directories to watch (mandatory)
 - `PROCESS_NAME`: process to send the signal to (mandatory)
 - `RELOAD_SIGNAL`: signal to send (optional, defaults to `SIGHUP`)
 
@@ -48,4 +50,18 @@ TODO
 
 ## Gotchas
 
-TODO
+### Share Process Namespace
+
+In order for the sidecar to find which process to send the signal to, the Pod needs to be configured to [Share Process Namespace](https://kubernetes.io/docs/tasks/configure-pod-container/share-process-namespace/) with `shareProcessNamespace: true`.
+
+### Update speed
+
+You might noticed when editing a Secret or ConfigMap that your process isn't being reloaded immediately.
+
+This is because the projected values of ConfigMaps and Secrets are not updated exactly when the underlying object changes, but instead they're [updated periodically](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#mounted-configmaps-are-updated-automatically) according to the `syncFrequency` argument to the [kubelet config](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/). This defaults to 1 minute.
+
+### Config files mounted via `subPath` are never updated
+
+This is a long-standing Kubernetes issue: ConfigMap and Secrets mounted as files with a `subPath` key do not get updated by the kubelet. See [issue #50345](https://github.com/kubernetes/kubernetes/issues/50345) on Github.
+
+The (pretty ugly) workaround involves [mounting the secret/configmap without subPath in a different folder and manually creating a symlink from an initContainer ahead of time to that folder](https://github.com/kubernetes/kubernetes/issues/50345#issuecomment-400647420), or if possible at all switching to not using `subPath`.
