@@ -23,6 +23,11 @@ func main() {
 		log.Fatal("mandatory env var PROCESS_NAME is empty, exiting")
 	}
 
+	logEnabled := os.Getenv("LOG_ENABLED")
+	if logEnabled == "" {
+		logEnabled = "true"
+	}
+
 	var reloadSignal syscall.Signal
 	reloadSignalStr := os.Getenv("RELOAD_SIGNAL")
 	if reloadSignalStr == "" {
@@ -50,7 +55,9 @@ func main() {
 				if !ok {
 					return
 				}
-				log.Println("event:", event)
+				if logEnabled == "true" {
+					log.Println("event:", event)
+				}
 				if event.Op&fsnotify.Chmod != fsnotify.Chmod {
 					log.Println("modified file:", event.Name)
 					err := reloadProcess(processName, reloadSignal)
