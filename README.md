@@ -41,6 +41,7 @@ In addition, you'll need to set [`shareProcessNamespace: true` on your Pod](http
 - `CONFIG_DIR`: comma-separated list of configuration directories to watch (mandatory)
 - `PROCESS_NAME`: process to send the signal to (mandatory)
 - `RELOAD_SIGNAL`: signal to send (optional, defaults to `SIGHUP`)
+- `VERBOSE`: whether to print out all inotify events (optional, defaults to `false`)
 
 ## Example Pod configuration
 
