@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/bep/debounce"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/go-ps"
 	"golang.org/x/sys/unix"
@@ -29,6 +31,18 @@ func main() {
 		verbose = true
 	}
 
+	delay, _ := time.ParseDuration("0")
+	delayFlag := os.Getenv("DEBOUNCE_DELAY")
+	if delayFlag != "" {
+		delayDuration, err := time.ParseDuration(delayFlag)
+		if err != nil {
+			log.Fatal(err)
+		}
+		delay = delayDuration
+	}
+
+	debounced := debounce.New(delay)
+
 	var reloadSignal syscall.Signal
 	reloadSignalStr := os.Getenv("RELOAD_SIGNAL")
 	if reloadSignalStr == "" {
@@ -41,7 +55,7 @@ func main() {
 		}
 	}
 
-	log.Printf("starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s\n", configDir, processName, reloadSignal)
+	log.Printf("starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s, DEBOUNCE_DELAY=%s\n", configDir, processName, reloadSignal, delay)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -61,10 +75,13 @@ func main() {
 				}
 				if event.Op&fsnotify.Chmod != fsnotify.Chmod {
 					log.Println("modified file:", event.Name)
-					err := reloadProcess(processName, reloadSignal)
-					if err != nil {
-						log.Println("error:", err)
-					}
+
+					debounced(func() {
+						err := reloadProcess(processName, reloadSignal)
+						if err != nil {
+							log.Println("error:", err)
+						}
+					})
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
