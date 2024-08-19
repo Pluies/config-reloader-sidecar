@@ -32,7 +32,7 @@ func main() {
 	}
 
 	delay, _ := time.ParseDuration("0")
-	delayFlag := os.Getenv("DELAY")
+	delayFlag := os.Getenv("DEBOUNCER_DELAY")
 	if delayFlag != "" {
 		delayDuration, err := time.ParseDuration(delayFlag)
 		if err != nil {
@@ -55,7 +55,7 @@ func main() {
 		}
 	}
 
-	log.Printf("starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s, DELAY=%s\n", configDir, processName, reloadSignal, delay)
+	log.Printf("starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s, DEBOUNCER_DELAY=%s\n", configDir, processName, reloadSignal, delay)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
