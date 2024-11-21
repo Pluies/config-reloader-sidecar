@@ -1,4 +1,4 @@
-FROM golang:1.21 as builder
+FROM golang:1.23 as builder
 
 WORKDIR /workspace
 
@@ -18,7 +18,7 @@ RUN upx --best --lzma /config-reloader-sidecar
 
 # Runtime
 
-FROM gcr.io/distroless/static-debian11:latest
+FROM gcr.io/distroless/static-debian12:latest
 
 COPY --from=upx /config-reloader-sidecar .
 
