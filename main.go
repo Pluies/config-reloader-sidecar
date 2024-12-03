@@ -2,17 +2,20 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"strings"
-	"syscall"
-
 	"github.com/fsnotify/fsnotify"
 	"github.com/mitchellh/go-ps"
 	"golang.org/x/sys/unix"
+	"log"
+	"log/slog"
+	"os"
+	"strings"
+	"syscall"
 )
 
 func main() {
+	jsonHandler := slog.NewJSONHandler(os.Stderr, nil)
+	logger := slog.New(jsonHandler)
+
 	configDir := os.Getenv("CONFIG_DIR")
 	if configDir == "" {
 		log.Fatal("mandatory env var CONFIG_DIR is empty, exiting")
@@ -32,7 +35,7 @@ func main() {
 	var reloadSignal syscall.Signal
 	reloadSignalStr := os.Getenv("RELOAD_SIGNAL")
 	if reloadSignalStr == "" {
-		log.Printf("RELOAD_SIGNAL is empty, defaulting to SIGHUP")
+		logger.Info("RELOAD_SIGNAL is empty, defaulting to SIGHUP")
 		reloadSignal = syscall.SIGHUP
 	} else {
 		reloadSignal = unix.SignalNum(reloadSignalStr)
@@ -41,7 +44,7 @@ func main() {
 		}
 	}
 
-	log.Printf("starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s\n", configDir, processName, reloadSignal)
+	logInfo(logger, "starting with CONFIG_DIR=%s, PROCESS_NAME=%s, RELOAD_SIGNAL=%s\n", configDir, processName, reloadSignal)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
@@ -57,20 +60,20 @@ func main() {
 					return
 				}
 				if verbose {
-					log.Println("event:", event)
+					logInfo(logger, "event: %s", event)
 				}
 				if event.Op&fsnotify.Chmod != fsnotify.Chmod {
-					log.Println("modified file:", event.Name)
-					err := reloadProcess(processName, reloadSignal)
+					logInfo(logger, "modified file: %s", event.Name)
+					err := reloadProcess(processName, reloadSignal, logger)
 					if err != nil {
-						log.Println("error:", err)
+						logError(logger, "error: %s", err)
 					}
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
-				log.Println("error:", err)
+				logError(logger, "error: %s", err)
 			}
 		}
 	}()
@@ -86,7 +89,15 @@ func main() {
 	<-done
 }
 
-func findPID(process string) (int, error) {
+func logInfo(logger *slog.Logger, format string, args ...any) {
+	logger.Info(fmt.Sprintf(format, args...))
+}
+
+func logError(logger *slog.Logger, format string, args ...any) {
+	logger.Info(fmt.Sprintf(format, args...))
+}
+
+func findPID(process string, logger *slog.Logger) (int, error) {
 	processes, err := ps.Processes()
 	if err != nil {
 		return -1, fmt.Errorf("failed to list processes: %v\n", err)
@@ -94,7 +105,7 @@ func findPID(process string) (int, error) {
 
 	for _, p := range processes {
 		if p.Executable() == process {
-			log.Printf("found executable %s (pid: %d)\n", p.Executable(), p.Pid())
+			logInfo(logger, "found executable %s (pid: %d)\n", p.Executable(), p.Pid())
 			return p.Pid(), nil
 		}
 	}
@@ -102,8 +113,8 @@ func findPID(process string) (int, error) {
 	return -1, fmt.Errorf("no process matching %s found\n", process)
 }
 
-func reloadProcess(process string, signal syscall.Signal) error {
-	pid, err := findPID(process)
+func reloadProcess(process string, signal syscall.Signal, logger *slog.Logger) error {
+	pid, err := findPID(process, logger)
 	if err != nil {
 		return err
 	}
@@ -113,6 +124,6 @@ func reloadProcess(process string, signal syscall.Signal) error {
 		return fmt.Errorf("could not send signal: %v\n", err)
 	}
 
-	log.Printf("signal %s sent to %s (pid: %d)\n", signal, process, pid)
+	logInfo(logger, "signal %s sent to %s (pid: %d)\n", signal, process, pid)
 	return nil
 }
