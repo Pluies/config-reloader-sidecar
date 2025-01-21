@@ -10,9 +10,9 @@ ADD . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o config-reloader-sidecar .
 
 # UPX compression
-FROM gruebel/upx:latest as upx
+FROM vipin0/upx:v4.2.4 as upx
 
-COPY --from=builder /workspace/config-reloader-sidecar .
+COPY --from=builder /workspace/config-reloader-sidecar /
 
 RUN upx --best --lzma /config-reloader-sidecar
 
