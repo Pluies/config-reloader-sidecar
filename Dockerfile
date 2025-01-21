@@ -1,4 +1,4 @@
-FROM golang:1.21 as builder
+FROM golang:1.21 AS builder
 
 WORKDIR /workspace
 
@@ -10,7 +10,7 @@ ADD . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o config-reloader-sidecar .
 
 # UPX compression
-FROM vipin0/upx:v4.2.4 as upx
+FROM devopsworks/golang-upx:1.23.2 AS upx
 
 COPY --from=builder /workspace/config-reloader-sidecar /
 
