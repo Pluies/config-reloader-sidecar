@@ -1,7 +1,6 @@
 module github.com/pluies/config-reloader-sidecar/v2
 
-go 1.22
-toolchain go1.24.1
+go 1.24
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
