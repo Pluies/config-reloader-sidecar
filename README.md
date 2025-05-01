@@ -1,6 +1,6 @@
 # config-reloader-sidecar
 
-A small (3MB uncompressed docker image), efficient (via inotify) sidecar to trigger application reloads when configuration changes.
+A small (1.5MB uncompressed docker image), efficient (via inotify) sidecar to trigger application reloads when configuration changes.
 
 ## Rationale
 
