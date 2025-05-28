@@ -1,0 +1,42 @@
+name: Build and Push
+
+# Builds and pushes the branch to ECR from master, or the manually selected branch when invoked manually. We stopped using Docker Hub for storing the image of oplogtoredis, where we used a Webhook to do the same thing.
+
+on:
+  push:
+    branches:
+      - master
+  # Left this here in-case the workflow needs to be developed further rapidly:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+
+      - name: Setup ECR/buildx
+        uses: ./.github/actions/setup-ecr-buildx
+        id: setup-ecr-buildx
+        with:
+          iam-role-to-assume: ${{ secrets.AWS_PUBLIC_ECR_IAM_ROLE_ARN }}
+          registry-type: public
+
+      - name: Build and push image
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # 4.0.0
+        with:
+          tags: ${{ steps.setup-ecr-buildx.outputs.ecr_registry }}/tulip/config-reloader-sidecar:${{ github.sha }}
+          provenance: true
+          push: true
+          platforms: linux/amd64,linux/arm64
